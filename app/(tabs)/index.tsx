@@ -248,14 +248,14 @@ export default function ChatScreen() {
           state.conversationHistory,
           text,
           db,
-          async (toolName, input) => {
-            addToolMessage(toolName, JSON.stringify(input));
+          async (toolName, result) => {
+            addToolMessage(toolName, result);
             // Save tool message
             await addChatMessage(
               db,
               chatId!,
               "tool",
-              JSON.stringify({ text: JSON.stringify(input), toolName })
+              JSON.stringify({ text: result, toolName })
             );
           },
           { foodPreferences, allergies }
@@ -330,13 +330,13 @@ export default function ChatScreen() {
           state.conversationHistory,
           promptText,
           db,
-          async (toolName, input) => {
-            addToolMessage(toolName, JSON.stringify(input));
+          async (toolName, result) => {
+            addToolMessage(toolName, result);
             await addChatMessage(
               db,
               chatId!,
               "tool",
-              JSON.stringify({ text: JSON.stringify(input), toolName })
+              JSON.stringify({ text: result, toolName })
             );
           },
           { foodPreferences, allergies },
