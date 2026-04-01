@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fridgely — AI-Powered Fridge Assistant</title>
-  <link rel="icon" href="media/icon.png" />
+  <link rel="icon" type="image/svg+xml" href="media/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -239,10 +239,10 @@
 
     .media-placeholder {
       background: var(--bg-card);
-      border: 2px dashed var(--border);
+      border: 1px solid var(--border);
       border-radius: 20px;
-      aspect-ratio: 9 / 16;
-      max-height: 580px;
+      aspect-ratio: 9 / 20;
+      max-height: 680px;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       gap: 0.75rem;
@@ -251,7 +251,7 @@
       position: relative;
       overflow: hidden;
       margin: 0 auto;
-      max-width: 290px;
+      max-width: 320px;
     }
     .media-placeholder.wide {
       aspect-ratio: 16 / 9;
@@ -271,7 +271,7 @@
     .media-placeholder video {
       position: absolute; inset: 0;
       width: 100%; height: 100%;
-      object-fit: cover; border-radius: 18px;
+      object-fit: contain;
     }
 
     /* ── Tech stack ── */
@@ -343,13 +343,14 @@
   <nav>
     <div class="nav-inner">
       <a href="#" class="logo">
-        <img src="media/icon.png" alt="Fridgely" />
+        <img src="media/favicon.svg" alt="Fridgely" />
         Fridgely
       </a>
       <ul>
         <li><a href="#features">Features</a></li>
         <li><a href="#chat">AI Chat</a></li>
         <li><a href="#fridge">Smart Fridge</a></li>
+        <li><a href="#photo">Photo Recognition</a></li>
         <li><a href="#expiry">Expiry Tracking</a></li>
         <li><a href="#tech">Tech Stack</a></li>
       </ul>
@@ -358,7 +359,7 @@
 
   <!-- Hero -->
   <section class="hero">
-    <img src="media/icon.png" alt="Fridgely" class="hero-icon" />
+    <img src="media/favicon.svg" alt="Fridgely" class="hero-icon" />
     <h1>
       Meet <span class="gradient-text">Fridgely</span>
     </h1>
@@ -431,9 +432,7 @@
     </div>
     <div class="fade-in">
       <div class="media-placeholder" id="media-chat">
-        <span class="placeholder-icon">&#x1F4F1;</span>
-        <span class="placeholder-label">Chat Screen</span>
-        <span class="placeholder-hint">Add screenshot or video here<br /><code>media/chat.png</code></span>
+        <img src="media/chat.png" alt="Chat Screen" />
       </div>
     </div>
   </div>
@@ -453,14 +452,32 @@
     </div>
     <div class="fade-in">
       <div class="media-placeholder" id="media-fridge">
-        <span class="placeholder-icon">&#x1F9CA;</span>
-        <span class="placeholder-label">Fridge Screen</span>
-        <span class="placeholder-hint">Add screenshot or video here<br /><code>media/fridge.png</code></span>
+        <img src="media/fridge.png" alt="Fridge Screen" />
       </div>
     </div>
   </div>
 
-  <!-- Showcase 3: Expiry Tracking -->
+  <!-- Showcase 3: Photo Recognition -->
+  <div class="showcase" id="photo">
+    <div class="showcase-content fade-in">
+      <span class="section-label">Photo Recognition</span>
+      <h2>Snap a photo,<br />stock your fridge</h2>
+      <p>Take a picture of your groceries and Fridgely's AI identifies every item, adds them to your inventory, and estimates how long each will stay fresh.</p>
+      <ul>
+        <li><span class="check">&#x2713;</span> Automatic item identification from photos</li>
+        <li><span class="check">&#x2713;</span> Batch-adds multiple items at once</li>
+        <li><span class="check">&#x2713;</span> Estimates freshness duration per item</li>
+        <li><span class="check">&#x2713;</span> Works with any grocery or produce photo</li>
+      </ul>
+    </div>
+    <div class="fade-in">
+      <div class="media-placeholder">
+        <img src="media/photo-recognition.png" alt="Photo Recognition" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Showcase 4: Expiry Tracking -->
   <div class="showcase" id="expiry">
     <div class="showcase-content fade-in">
       <span class="section-label">Expiry Tracking</span>
@@ -475,9 +492,7 @@
     </div>
     <div class="fade-in">
       <div class="media-placeholder" id="media-expiry">
-        <span class="placeholder-icon">&#x23F0;</span>
-        <span class="placeholder-label">Expiry Details</span>
-        <span class="placeholder-hint">Add screenshot or video here<br /><code>media/expiry.png</code></span>
+        <img src="media/expiry.png" alt="Expiry Tracking" />
       </div>
     </div>
   </div>
@@ -490,10 +505,8 @@
       <h2 class="section-title">See it in action</h2>
       <p class="section-subtitle" style="margin:0 auto 3rem;">Watch how Fridgely turns a simple conversation into a fully managed fridge.</p>
     </div>
-    <div class="media-placeholder wide fade-in" id="media-demo" style="max-width:800px; margin:0 auto;">
-      <span class="placeholder-icon">&#x25B6;&#xFE0F;</span>
-      <span class="placeholder-label">Demo Video</span>
-      <span class="placeholder-hint">Add a full demo video here<br /><code>media/demo.mp4</code></span>
+    <div class="media-placeholder fade-in" id="media-demo" style="max-width:320px; max-height:640px; margin:0 auto;">
+      <video src="media/demo.mp4" controls muted loop playsinline></video>
     </div>
   </section>
 
@@ -542,7 +555,7 @@
   <!-- Footer -->
   <footer>
     <div class="footer-logo">
-      <img src="media/icon.png" alt="Fridgely" />
+      <img src="media/favicon.svg" alt="Fridgely" />
       Fridgely
     </div>
     <p>Built with care to reduce food waste, one fridge at a time.</p>
