@@ -7,6 +7,7 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useDatabase } from "../../src/context/DatabaseProvider";
@@ -34,6 +35,17 @@ export default function ChatScreen() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const sub = Keyboard.addListener(showEvent, () => {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     SecureStore.getItemAsync(API_KEY_STORE)

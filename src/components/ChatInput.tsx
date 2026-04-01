@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Keyboard,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -15,18 +15,21 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [text, setText] = useState("");
+  const inputRef = useRef<TextInput>(null);
 
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setText("");
-    Keyboard.dismiss();
+    // Keep keyboard open after sending so user can continue chatting
+    inputRef.current?.focus();
   };
 
   return (
     <View style={styles.container}>
       <TextInput
+        ref={inputRef}
         style={styles.input}
         value={text}
         onChangeText={setText}
@@ -36,7 +39,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         maxLength={1000}
         editable={!disabled}
         onSubmitEditing={handleSend}
-        blurOnSubmit
+        blurOnSubmit={Platform.OS !== "ios"}
+        returnKeyType="send"
       />
       <TouchableOpacity
         style={[styles.sendButton, disabled && styles.sendButtonDisabled]}
