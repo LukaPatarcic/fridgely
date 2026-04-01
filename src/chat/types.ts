@@ -5,3 +5,10 @@ export interface ChatMessage {
   toolName?: string;
   timestamp: number;
 }
+
+export interface ChatSummary {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}

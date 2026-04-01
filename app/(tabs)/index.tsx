@@ -7,15 +7,28 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  Modal,
+  Alert,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import { Ionicons } from "@expo/vector-icons";
 import { useDatabase } from "../../src/context/DatabaseProvider";
 import { sendMessage } from "../../src/api/claude";
 import { useChatReducer } from "../../src/chat/useChatReducer";
 import { MessageBubble } from "../../src/components/MessageBubble";
 import { ChatInput } from "../../src/components/ChatInput";
 import { ApiKeyModal } from "../../src/components/ApiKeyModal";
-import type { ChatMessage } from "../../src/chat/types";
+import type { ChatMessage, ChatSummary } from "../../src/chat/types";
+import {
+  createChat,
+  listChats,
+  getChatMessages,
+  addChatMessage,
+  updateChatTitle,
+  deleteChat,
+} from "../../src/db/repository";
+import type { ChatMessageRow } from "../../src/db/repository";
 
 const API_KEY_STORE = "fridgely_api_key";
 
@@ -29,10 +42,15 @@ export default function ChatScreen() {
     setHistory,
     setLoading,
     setError,
+    loadChat,
+    setChatId,
+    clearChat,
   } = useChatReducer();
 
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
   useEffect(() => {
@@ -49,12 +67,128 @@ export default function ChatScreen() {
       });
   }, []);
 
+  // Load most recent chat on mount
+  useEffect(() => {
+    loadMostRecentChat();
+  }, []);
+
+  async function loadMostRecentChat() {
+    try {
+      const chats = await listChats(db);
+      if (chats.length > 0) {
+        await loadChatById(chats[0].id);
+      }
+    } catch {
+      // No chats yet, start fresh
+    }
+  }
+
+  async function loadChatById(chatId: number) {
+    try {
+      const rows = await getChatMessages(db, chatId);
+      const displayMessages: ChatMessage[] = rows.map(
+        (row: ChatMessageRow, index: number) => {
+          const parsed = JSON.parse(row.content);
+          return {
+            id: `db_${row.id}_${index}`,
+            role: row.role as "user" | "assistant" | "tool",
+            text: parsed.text ?? "",
+            toolName: parsed.toolName,
+            timestamp: new Date(row.created_at).getTime(),
+          };
+        }
+      );
+
+      // Rebuild conversation history from stored messages for API context
+      const history = rebuildHistoryFromRows(rows);
+
+      loadChat(displayMessages, history);
+      setChatId(chatId);
+    } catch {
+      // Failed to load, start fresh
+    }
+  }
+
+  function rebuildHistoryFromRows(
+    rows: ChatMessageRow[]
+  ): { role: "user" | "assistant"; content: string | object[] }[] {
+    const history: {
+      role: "user" | "assistant";
+      content: string | object[];
+    }[] = [];
+
+    for (const row of rows) {
+      const parsed = JSON.parse(row.content);
+      if (row.role === "user") {
+        if (parsed.apiContent) {
+          history.push({ role: "user", content: parsed.apiContent });
+        } else {
+          history.push({ role: "user", content: parsed.text });
+        }
+      } else if (row.role === "assistant") {
+        if (parsed.apiContent) {
+          history.push({ role: "assistant", content: parsed.apiContent });
+        } else {
+          history.push({ role: "assistant", content: parsed.text });
+        }
+      }
+      // tool messages are part of user messages in the API history, skip separate entries
+    }
+
+    return history;
+  }
+
   const handleSaveApiKey = useCallback(async (key: string) => {
     const clean = key.replace(/\s+/g, "");
     await SecureStore.setItemAsync(API_KEY_STORE, clean);
     setApiKey(clean);
     setShowKeyModal(false);
   }, []);
+
+  const handleNewChat = useCallback(() => {
+    clearChat();
+    setChatId(null);
+  }, [clearChat, setChatId]);
+
+  const handleOpenHistory = useCallback(async () => {
+    try {
+      const chats = await listChats(db);
+      setChatList(chats);
+      setShowHistoryModal(true);
+    } catch {
+      // ignore
+    }
+  }, [db]);
+
+  const handleSelectChat = useCallback(
+    async (chatId: number) => {
+      setShowHistoryModal(false);
+      await loadChatById(chatId);
+    },
+    [db]
+  );
+
+  const handleDeleteChat = useCallback(
+    async (chatId: number) => {
+      Alert.alert("Delete Chat", "Are you sure you want to delete this chat?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteChat(db, chatId);
+            const updated = await listChats(db);
+            setChatList(updated);
+            if (state.currentChatId === chatId) {
+              clearChat();
+              setChatId(null);
+            }
+          },
+        },
+      ]);
+    },
+    [db, state.currentChatId, clearChat, setChatId]
+  );
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -63,8 +197,25 @@ export default function ChatScreen() {
         return;
       }
 
+      // Create chat if needed
+      let chatId = state.currentChatId;
+      if (!chatId) {
+        const title = text.length > 30 ? text.slice(0, 30) + "..." : text;
+        const chat = await createChat(db, title);
+        chatId = chat.id;
+        setChatId(chatId);
+      }
+
       addUserMessage(text);
       setLoading(true);
+
+      // Save user message
+      await addChatMessage(
+        db,
+        chatId,
+        "user",
+        JSON.stringify({ text })
+      );
 
       try {
         const { assistantText, updatedHistory } = await sendMessage(
@@ -72,14 +223,28 @@ export default function ChatScreen() {
           state.conversationHistory,
           text,
           db,
-          (toolName, input) => {
+          async (toolName, input) => {
             addToolMessage(toolName, JSON.stringify(input));
+            // Save tool message
+            await addChatMessage(
+              db,
+              chatId!,
+              "tool",
+              JSON.stringify({ text: JSON.stringify(input), toolName })
+            );
           }
         );
 
         setHistory(updatedHistory);
         if (assistantText) {
           addAssistantMessage(assistantText);
+          // Save assistant message
+          await addChatMessage(
+            db,
+            chatId,
+            "assistant",
+            JSON.stringify({ text: assistantText })
+          );
         }
       } catch (err) {
         const message =
@@ -93,14 +258,27 @@ export default function ChatScreen() {
       apiKey,
       db,
       state.conversationHistory,
+      state.currentChatId,
       addUserMessage,
       addAssistantMessage,
       addToolMessage,
       setHistory,
       setLoading,
       setError,
+      setChatId,
     ]
   );
+
+  function formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  }
 
   return (
     <KeyboardAvoidingView
@@ -109,6 +287,73 @@ export default function ChatScreen() {
       keyboardVerticalOffset={90}
     >
       <ApiKeyModal visible={showKeyModal} onSave={handleSaveApiKey} />
+
+      {/* Header buttons */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={handleOpenHistory}
+        >
+          <Ionicons name="time-outline" size={20} color="#4F46E5" />
+          <Text style={styles.headerButtonText}>History</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={handleNewChat}
+        >
+          <Ionicons name="add-circle-outline" size={20} color="#4F46E5" />
+          <Text style={styles.headerButtonText}>New Chat</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Chat History Modal */}
+      <Modal
+        visible={showHistoryModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowHistoryModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Chat History</Text>
+            <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
+          {chatList.length === 0 ? (
+            <View style={styles.emptyHistory}>
+              <Text style={styles.emptyHistoryText}>No past chats yet.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={chatList}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => (
+                <View style={styles.chatRow}>
+                  <TouchableOpacity
+                    style={styles.chatRowContent}
+                    onPress={() => handleSelectChat(item.id)}
+                  >
+                    <Text style={styles.chatTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.chatDate}>
+                      {formatDate(item.updated_at)}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteChat(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              contentContainerStyle={styles.chatListContent}
+            />
+          )}
+        </View>
+      </Modal>
 
       {state.displayMessages.length === 0 && !state.isLoading ? (
         <View style={styles.emptyState}>
@@ -154,6 +399,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  headerBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  headerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  headerButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4F46E5",
   },
   messageList: {
     paddingVertical: 12,
@@ -201,5 +466,62 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
     fontSize: 13,
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  emptyHistory: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyHistoryText: {
+    fontSize: 15,
+    color: "#9CA3AF",
+  },
+  chatListContent: {
+    paddingVertical: 8,
+  },
+  chatRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F9FAFB",
+  },
+  chatRowContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  chatTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  chatDate: {
+    fontSize: 13,
+    color: "#9CA3AF",
+  },
+  deleteButton: {
+    padding: 8,
   },
 });
