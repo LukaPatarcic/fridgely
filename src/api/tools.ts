@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { addItem, removeItem, listItems, clearAll, decrementItemQuantity } from "../db/repository";
+import { daysUntilExpiry } from "../utils/expiryEstimator";
 
 export interface ToolDefinition {
   name: string;
@@ -11,7 +12,7 @@ export const toolDefinitions: ToolDefinition[] = [
   {
     name: "add_to_fridge",
     description:
-      "Add a grocery item to the user's fridge. Use this when the user mentions buying or having food items.",
+      "Add a grocery item to the user's fridge. Use this when the user mentions buying or having food items. Always estimate shelf life.",
     input_schema: {
       type: "object",
       properties: {
@@ -25,8 +26,13 @@ export const toolDefinitions: ToolDefinition[] = [
           description:
             'Unit of measurement (e.g. "pieces", "lbs", "liters", "gallons"). Optional.',
         },
+        expires_in_days: {
+          type: "number",
+          description:
+            "Estimated number of days until this food expires when stored in a fridge. Use your food safety knowledge to estimate (e.g. raw chicken ~2 days, milk ~7 days, eggs ~28 days, apples ~21 days). Always provide this.",
+        },
       },
-      required: ["name", "quantity"],
+      required: ["name", "quantity", "expires_in_days"],
     },
   },
   {
@@ -101,7 +107,14 @@ export async function executeTool(
           return JSON.stringify({ error: "Quantity must be between 1 and 10000" });
         }
         const unit = typeof input.unit === "string" ? input.unit.trim().slice(0, 50) : undefined;
-        const item = await addItem(db, name, quantity, unit);
+        let expiresAt: string | undefined;
+        const expiresInDays = typeof input.expires_in_days === "number" ? input.expires_in_days : undefined;
+        if (expiresInDays && expiresInDays > 0) {
+          const date = new Date();
+          date.setDate(date.getDate() + expiresInDays);
+          expiresAt = date.toISOString().slice(0, 19).replace("T", " ");
+        }
+        const item = await addItem(db, name, quantity, unit, expiresAt);
         return JSON.stringify({
           success: true,
           action: item.updated ? "quantity_updated" : "added_new",
@@ -109,6 +122,7 @@ export async function executeTool(
             name: item.name,
             quantity: item.quantity,
             unit: item.unit,
+            expires_at: item.expires_at,
           },
         });
       }
@@ -134,6 +148,8 @@ export async function executeTool(
             name: i.name,
             quantity: i.quantity,
             unit: i.unit,
+            expires_at: i.expires_at,
+            days_until_expiry: i.expires_at ? daysUntilExpiry(i.expires_at) : null,
           })),
           total: items.length,
         });
