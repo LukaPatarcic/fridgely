@@ -6,6 +6,7 @@ export interface FridgeItem {
   quantity: number;
   unit: string | null;
   added_at: string;
+  expires_at: string | null;
 }
 
 export interface Chat {
@@ -27,7 +28,8 @@ export async function addItem(
   db: SQLiteDatabase,
   name: string,
   quantity: number,
-  unit?: string
+  unit?: string,
+  expiresAt?: string
 ): Promise<FridgeItem & { updated: boolean }> {
   const existing = await db.getFirstAsync<FridgeItem>(
     "SELECT * FROM fridge_items WHERE LOWER(name) = LOWER(?)",
@@ -37,6 +39,13 @@ export async function addItem(
   if (existing) {
     const newQuantity = existing.quantity + quantity;
     await updateItemQuantity(db, name, newQuantity);
+    // Update expiry if a new one is provided and it's sooner than the existing one
+    if (expiresAt && (!existing.expires_at || expiresAt < existing.expires_at)) {
+      await db.runAsync(
+        "UPDATE fridge_items SET expires_at = ? WHERE id = ?",
+        [expiresAt, existing.id]
+      );
+    }
     const updated = await db.getFirstAsync<FridgeItem>(
       "SELECT * FROM fridge_items WHERE id = ?",
       [existing.id]
@@ -45,8 +54,8 @@ export async function addItem(
   }
 
   const result = await db.runAsync(
-    "INSERT INTO fridge_items (name, quantity, unit) VALUES (?, ?, ?)",
-    [name, quantity, unit ?? null]
+    "INSERT INTO fridge_items (name, quantity, unit, expires_at) VALUES (?, ?, ?, ?)",
+    [name, quantity, unit ?? null, expiresAt ?? null]
   );
   const row = await db.getFirstAsync<FridgeItem>(
     "SELECT * FROM fridge_items WHERE id = ?",
@@ -68,7 +77,7 @@ export async function removeItem(
 
 export async function listItems(db: SQLiteDatabase): Promise<FridgeItem[]> {
   return db.getAllAsync<FridgeItem>(
-    "SELECT * FROM fridge_items ORDER BY added_at DESC"
+    "SELECT * FROM fridge_items ORDER BY CASE WHEN expires_at IS NULL THEN 1 ELSE 0 END, expires_at ASC, added_at ASC"
   );
 }
 

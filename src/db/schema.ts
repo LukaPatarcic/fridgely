@@ -7,7 +7,8 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       name TEXT NOT NULL,
       quantity REAL NOT NULL DEFAULT 1,
       unit TEXT,
-      added_at TEXT NOT NULL DEFAULT (datetime('now'))
+      added_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS chats (
@@ -26,4 +27,12 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
       FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
     );
   `);
+
+  // Migration: add expires_at column if missing (existing installs)
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(fridge_items)"
+  );
+  if (!columns.some((c) => c.name === "expires_at")) {
+    await db.execAsync("ALTER TABLE fridge_items ADD COLUMN expires_at TEXT");
+  }
 }
