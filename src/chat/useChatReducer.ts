@@ -7,6 +7,7 @@ interface ChatState {
   conversationHistory: Message[];
   isLoading: boolean;
   error: string | null;
+  currentChatId: number | null;
 }
 
 type ChatAction =
@@ -15,7 +16,10 @@ type ChatAction =
   | { type: "ADD_TOOL_MESSAGE"; toolName: string; result: string }
   | { type: "SET_HISTORY"; history: Message[] }
   | { type: "SET_LOADING"; loading: boolean }
-  | { type: "SET_ERROR"; error: string | null };
+  | { type: "SET_ERROR"; error: string | null }
+  | { type: "LOAD_CHAT"; messages: ChatMessage[]; history: Message[] }
+  | { type: "SET_CHAT_ID"; chatId: number | null }
+  | { type: "CLEAR_CHAT" };
 
 let msgId = 0;
 function nextId(): string {
@@ -71,6 +75,19 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, isLoading: action.loading };
     case "SET_ERROR":
       return { ...state, error: action.error, isLoading: false };
+    case "LOAD_CHAT":
+      return {
+        ...state,
+        displayMessages: action.messages,
+        conversationHistory: action.history,
+        error: null,
+      };
+    case "SET_CHAT_ID":
+      return { ...state, currentChatId: action.chatId };
+    case "CLEAR_CHAT":
+      return {
+        ...initialState,
+      };
     default:
       return state;
   }
@@ -81,6 +98,7 @@ const initialState: ChatState = {
   conversationHistory: [],
   isLoading: false,
   error: null,
+  currentChatId: null,
 };
 
 export function useChatReducer() {
@@ -111,6 +129,16 @@ export function useChatReducer() {
     (error: string | null) => dispatch({ type: "SET_ERROR", error }),
     []
   );
+  const loadChat = useCallback(
+    (messages: ChatMessage[], history: Message[]) =>
+      dispatch({ type: "LOAD_CHAT", messages, history }),
+    []
+  );
+  const setChatId = useCallback(
+    (chatId: number | null) => dispatch({ type: "SET_CHAT_ID", chatId }),
+    []
+  );
+  const clearChat = useCallback(() => dispatch({ type: "CLEAR_CHAT" }), []);
 
   return {
     state,
@@ -120,5 +148,8 @@ export function useChatReducer() {
     setHistory,
     setLoading,
     setError,
+    loadChat,
+    setChatId,
+    clearChat,
   };
 }
