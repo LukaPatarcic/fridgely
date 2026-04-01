@@ -1,22 +1,41 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeProvider";
 import type { FridgeItem } from "../db/repository";
 
 interface FridgeItemRowProps {
   item: FridgeItem;
   onDelete: (name: string) => void;
+  onIncrement: (name: string) => void;
+  onDecrement: (name: string, currentQuantity: number) => void;
 }
 
-export function FridgeItemRow({ item, onDelete }: FridgeItemRowProps) {
+export function FridgeItemRow({ item, onDelete, onIncrement, onDecrement }: FridgeItemRowProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
       <View style={styles.info}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.detail}>
-          {item.quantity}
-          {item.unit ? ` ${item.unit}` : ""}
+        <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
+        <Text style={[styles.detail, { color: colors.textSecondary }]}>
+          {item.unit ? `${item.unit}` : ""}
         </Text>
+      </View>
+      <View style={styles.quantityControls}>
+        <TouchableOpacity
+          onPress={() => onDecrement(item.name, item.quantity)}
+          style={styles.quantityButton}
+        >
+          <Ionicons name="remove-circle-outline" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
+        <Text style={[styles.quantityText, { color: colors.text }]}>{item.quantity}</Text>
+        <TouchableOpacity
+          onPress={() => onIncrement(item.name)}
+          style={styles.quantityButton}
+        >
+          <Ionicons name="add-circle-outline" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
       <TouchableOpacity
         onPress={() => onDelete(item.name)}
@@ -34,9 +53,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   info: {
     flex: 1,
@@ -44,13 +61,25 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
     textTransform: "capitalize",
   },
   detail: {
     fontSize: 14,
-    color: "#6B7280",
     marginTop: 2,
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  quantityButton: {
+    padding: 4,
+  },
+  quantityText: {
+    fontSize: 16,
+    fontWeight: "600",
+    minWidth: 28,
+    textAlign: "center",
   },
   deleteButton: {
     padding: 8,

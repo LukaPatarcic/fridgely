@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { useTheme } from "../context/ThemeProvider";
 
 interface ApiKeyModalProps {
   visible: boolean;
@@ -18,6 +19,7 @@ interface ApiKeyModalProps {
 export function ApiKeyModal({ visible, onSave }: ApiKeyModalProps) {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
+  const { colors } = useTheme();
 
   const isValid = key.replace(/\s+/g, "").startsWith("sk-ant-");
 
@@ -37,25 +39,25 @@ export function ApiKeyModal({ visible, onSave }: ApiKeyModalProps) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
-        <View style={styles.container}>
-          <Text style={styles.title}>Welcome to Fridgely!</Text>
-          <Text style={styles.subtitle}>
+        <View style={[styles.container, { backgroundColor: colors.cardBackground }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Welcome to Fridgely!</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Enter your Anthropic API key to get started. Your key is stored
             securely on your device.
           </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
             value={key}
             onChangeText={(t) => { setKey(t); setError(""); }}
             placeholder="sk-ant-..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}
             secureTextEntry
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <TouchableOpacity
-            style={[styles.button, !isValid && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: colors.accent }, !isValid && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={!isValid}
           >
@@ -75,42 +77,36 @@ const styles = StyleSheet.create({
   },
   container: {
     marginHorizontal: 24,
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 28,
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1F2937",
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#6B7280",
     textAlign: "center",
     marginBottom: 20,
     lineHeight: 20,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#D1D5DB",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: "#1F2937",
     marginBottom: 16,
   },
   button: {
-    backgroundColor: "#4F46E5",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
   buttonDisabled: {
-    backgroundColor: "#C7D2FE",
+    opacity: 0.5,
   },
   buttonText: {
     color: "#FFFFFF",

@@ -8,13 +8,25 @@ const API_URL = `${PROXY_URL}/api/messages`;
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_TOOL_ROUNDS = 5;
 
-const SYSTEM_PROMPT = `You are Fridgely, a friendly fridge management assistant. You help users track what's in their fridge and suggest recipes based on available ingredients.
+function buildSystemPrompt(preferences?: { foodPreferences?: string; allergies?: string }): string {
+  let prompt = `You are Fridgely, a friendly fridge management assistant. You help users track what's in their fridge and suggest recipes based on available ingredients.
 
-When the user tells you about food they bought or have, use add_to_fridge to save it.
-When they say they used something up, use remove_from_fridge.
+When the user tells you about food they bought or have, use add_to_fridge to save it. If the item already exists, its quantity will be incremented automatically.
+When they say they used something up or discarded it entirely, use remove_from_fridge.
+When the user wants to cook or make a meal, first use list_fridge_contents to see what they have, then use use_from_fridge for each ingredient they will use in the recipe. This decrements the quantity or removes the item if fully used up.
 When they ask what's in their fridge or want recipe suggestions, first use list_fridge_contents to check, then provide suggestions.
 Always confirm actions after performing them.
 Keep responses concise and friendly.`;
+
+  if (preferences?.foodPreferences) {
+    prompt += `\n\nThe user has the following dietary preferences: ${preferences.foodPreferences}. Always respect these when suggesting recipes or meals.`;
+  }
+  if (preferences?.allergies) {
+    prompt += `\n\nCRITICAL - The user has the following allergies: ${preferences.allergies}. NEVER suggest recipes or ingredients that contain these allergens. Always check ingredients against this list before recommending anything.`;
+  }
+
+  return prompt;
+}
 
 export interface ContentBlock {
   type: string;
@@ -38,12 +50,13 @@ interface ApiResponse {
 
 async function callClaude(
   apiKey: string,
-  messages: Message[]
+  messages: Message[],
+  preferences?: { foodPreferences?: string; allergies?: string }
 ): Promise<ApiResponse> {
   const body = JSON.stringify({
     model: MODEL,
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(preferences),
     tools: toolDefinitions,
     messages,
     apiKey,
@@ -90,7 +103,8 @@ export async function sendMessage(
   conversationHistory: Message[],
   userText: string,
   db: SQLiteDatabase,
-  onToolUse?: (toolName: string, input: Record<string, unknown>) => void
+  onToolUse?: (toolName: string, input: Record<string, unknown>) => void,
+  preferences?: { foodPreferences?: string; allergies?: string }
 ): Promise<{ assistantText: string; updatedHistory: Message[] }> {
   const messages: Message[] = [
     ...conversationHistory,
@@ -100,7 +114,7 @@ export async function sendMessage(
   let rounds = 0;
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
-    const response = await callClaude(apiKey, messages);
+    const response = await callClaude(apiKey, messages, preferences);
 
     messages.push({ role: "assistant", content: response.content });
 

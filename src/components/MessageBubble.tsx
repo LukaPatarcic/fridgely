@@ -1,29 +1,138 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
+import Markdown from "react-native-markdown-display";
 import type { ChatMessage } from "../chat/types";
+import { useTheme } from "../context/ThemeProvider";
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
+  const { colors, theme } = useTheme();
+
+  const mdStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        body: {
+          fontSize: 16,
+          lineHeight: 22,
+          color: colors.text,
+        },
+        heading1: {
+          fontSize: 22,
+          fontWeight: "700",
+          color: colors.text,
+          marginBottom: 4,
+          marginTop: 8,
+        },
+        heading2: {
+          fontSize: 20,
+          fontWeight: "700",
+          color: colors.text,
+          marginBottom: 4,
+          marginTop: 6,
+        },
+        heading3: {
+          fontSize: 18,
+          fontWeight: "600",
+          color: colors.text,
+          marginBottom: 4,
+          marginTop: 4,
+        },
+        strong: { fontWeight: "700" },
+        em: { fontStyle: "italic" },
+        bullet_list: { marginVertical: 4 },
+        ordered_list: { marginVertical: 4 },
+        list_item: { marginVertical: 2 },
+        code_inline: {
+          backgroundColor: theme === "dark" ? "#374151" : "#E5E7EB",
+          borderRadius: 4,
+          paddingHorizontal: 4,
+          fontSize: 14,
+          fontFamily: "monospace",
+          color: colors.text,
+        },
+        fence: {
+          backgroundColor: theme === "dark" ? "#374151" : "#E5E7EB",
+          borderRadius: 8,
+          padding: 10,
+          marginVertical: 4,
+          fontSize: 14,
+          fontFamily: "monospace",
+          color: colors.text,
+        },
+        code_block: {
+          backgroundColor: theme === "dark" ? "#374151" : "#E5E7EB",
+          borderRadius: 8,
+          padding: 10,
+          marginVertical: 4,
+          fontSize: 14,
+          fontFamily: "monospace",
+          color: colors.text,
+        },
+        blockquote: {
+          backgroundColor: theme === "dark" ? "#374151" : "#E5E7EB",
+          borderLeftWidth: 3,
+          borderLeftColor: colors.accent,
+          paddingLeft: 10,
+          marginVertical: 4,
+        },
+        link: {
+          color: colors.accent,
+          textDecorationLine: "underline",
+        },
+        paragraph: {
+          marginTop: 0,
+          marginBottom: 4,
+        },
+      }),
+    [colors, theme]
+  );
+
   if (message.role === "tool") {
     return (
-      <View style={styles.toolContainer}>
-        <Text style={styles.toolLabel}>{message.toolName}</Text>
-        <Text style={styles.toolText}>{formatToolResult(message.text)}</Text>
+      <View
+        style={[
+          styles.toolContainer,
+          theme === "dark" && { backgroundColor: "#064E3B", borderColor: "#065F46" },
+        ]}
+      >
+        <Text
+          style={[
+            styles.toolLabel,
+            theme === "dark" && { color: "#6EE7B7" },
+          ]}
+        >
+          {message.toolName}
+        </Text>
+        <Text
+          style={[
+            styles.toolText,
+            theme === "dark" && { color: "#A7F3D0" },
+          ]}
+        >
+          {formatToolResult(message.text)}
+        </Text>
       </View>
     );
   }
 
   const isUser = message.role === "user";
 
+  if (isUser) {
+    return (
+      <View style={[styles.bubble, styles.userBubble, { backgroundColor: colors.accent }]}>
+        <Text style={[styles.text, styles.userText]}>{message.text}</Text>
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
         styles.bubble,
-        isUser ? styles.userBubble : styles.assistantBubble,
+        styles.assistantBubble,
+        { backgroundColor: theme === "dark" ? "#1F2937" : "#F3F4F6" },
       ]}
     >
-      <Text style={[styles.text, isUser ? styles.userText : styles.assistantText]}>
-        {message.text}
-      </Text>
+      <Markdown style={mdStyles}>{message.text}</Markdown>
     </View>
   );
 }
@@ -64,11 +173,9 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#4F46E5",
   },
   assistantBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "#F3F4F6",
   },
   text: {
     fontSize: 16,
@@ -76,9 +183,6 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: "#FFFFFF",
-  },
-  assistantText: {
-    color: "#1F2937",
   },
   toolContainer: {
     alignSelf: "flex-start",
