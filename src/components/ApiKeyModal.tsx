@@ -17,6 +17,19 @@ interface ApiKeyModalProps {
 
 export function ApiKeyModal({ visible, onSave }: ApiKeyModalProps) {
   const [key, setKey] = useState("");
+  const [error, setError] = useState("");
+
+  const isValid = key.replace(/\s+/g, "").startsWith("sk-ant-");
+
+  const handleSave = () => {
+    const cleaned = key.replace(/\s+/g, "");
+    if (!cleaned.startsWith("sk-ant-")) {
+      setError("API key must start with \"sk-ant-\"");
+      return;
+    }
+    setError("");
+    onSave(cleaned);
+  };
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -33,17 +46,18 @@ export function ApiKeyModal({ visible, onSave }: ApiKeyModalProps) {
           <TextInput
             style={styles.input}
             value={key}
-            onChangeText={setKey}
+            onChangeText={(t) => { setKey(t); setError(""); }}
             placeholder="sk-ant-..."
             placeholderTextColor="#9CA3AF"
             autoCapitalize="none"
             autoCorrect={false}
             secureTextEntry
           />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
           <TouchableOpacity
-            style={[styles.button, !key.trim() && styles.buttonDisabled]}
-            onPress={() => key.trim() && onSave(key.trim())}
-            disabled={!key.trim()}
+            style={[styles.button, !isValid && styles.buttonDisabled]}
+            onPress={handleSave}
+            disabled={!isValid}
           >
             <Text style={styles.buttonText}>Get Started</Text>
           </TouchableOpacity>
@@ -102,5 +116,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  error: {
+    color: "#DC2626",
+    fontSize: 13,
+    marginBottom: 12,
+    marginTop: -8,
   },
 });

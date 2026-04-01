@@ -1,7 +1,10 @@
 import { toolDefinitions, executeTool } from "./tools";
 import type { SQLiteDatabase } from "expo-sqlite";
+import Constants from "expo-constants";
 
-const API_URL = "http://10.10.10.76:3001/api/messages";
+const PROXY_URL =
+  Constants.expoConfig?.extra?.proxyUrl ?? "http://localhost:3001";
+const API_URL = `${PROXY_URL}/api/messages`;
 const MODEL = "claude-sonnet-4-20250514";
 const MAX_TOOL_ROUNDS = 5;
 
@@ -46,8 +49,6 @@ async function callClaude(
     apiKey,
   });
 
-  console.log("[Fridgely] Calling proxy...");
-
   const response = await new Promise<{ status: number; text: string }>(
     (resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -57,15 +58,7 @@ async function callClaude(
         resolve({ status: xhr.status, text: xhr.responseText });
       };
       xhr.onerror = () => {
-        console.log(
-          "[Fridgely] XHR error, status:",
-          xhr.status,
-          "response:",
-          xhr.responseText
-        );
-        reject(
-          new Error(`Network request failed (XHR status: ${xhr.status})`)
-        );
+        reject(new Error("Unable to connect to server"));
       };
       xhr.ontimeout = () => reject(new Error("Request timed out"));
       xhr.timeout = 60000;
@@ -73,11 +66,20 @@ async function callClaude(
     }
   );
 
-  console.log("[Fridgely] Status:", response.status);
-  console.log("[Fridgely] Body:", response.text.slice(0, 500));
-
   if (response.status < 200 || response.status >= 300) {
-    throw new Error(`API error ${response.status}: ${response.text}`);
+    // Parse error but don't expose raw API details
+    let userMessage = "Something went wrong";
+    try {
+      const err = JSON.parse(response.text);
+      if (response.status === 401) userMessage = "Invalid API key";
+      else if (response.status === 429) userMessage = "Too many requests, please wait";
+      else if (response.status === 400) userMessage = err.error?.message ?? "Bad request";
+      else if (response.status === 403) userMessage = "Access denied";
+      else if (response.status === 504) userMessage = "Request timed out";
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(userMessage);
   }
 
   return JSON.parse(response.text);
