@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fridgely — AI-Powered Fridge Assistant</title>
+  <link rel="icon" href="media/icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --accent: #6366F1;
+      --accent-light: #818CF8;
+      --accent-dark: #4F46E5;
+      --green: #10B981;
+      --orange: #F59E0B;
+      --red: #EF4444;
+      --bg: #0B0F1A;
+      --bg-card: #151B2E;
+      --bg-card-hover: #1C2440;
+      --text: #F1F5F9;
+      --text-secondary: #94A3B8;
+      --border: #1E293B;
+      --gradient-1: linear-gradient(135deg, #6366F1, #8B5CF6, #A78BFA);
+      --gradient-2: linear-gradient(135deg, #10B981, #34D399);
+    }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      backdrop-filter: blur(20px);
+      background: rgba(11, 15, 26, 0.8);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+    nav .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0.75rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    nav .logo {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-weight: 800; font-size: 1.25rem;
+      text-decoration: none; color: var(--text);
+    }
+    nav .logo img { width: 32px; height: 32px; border-radius: 8px; }
+    nav ul { list-style: none; display: flex; gap: 2rem; }
+    nav ul a {
+      color: var(--text-secondary); text-decoration: none;
+      font-size: 0.9rem; font-weight: 500;
+      transition: color 0.2s;
+    }
+    nav ul a:hover { color: var(--text); }
+
+    /* ── Section base ── */
+    section {
+      max-width: 1200px; margin: 0 auto;
+      padding: 6rem 2rem;
+    }
+    .section-label {
+      display: inline-block;
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--accent-light);
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800; line-height: 1.15;
+      margin-bottom: 1.25rem;
+    }
+    .section-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin-bottom: 3rem;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      position: relative;
+      padding-top: 5rem;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 0%, rgba(99,102,241,0.15), transparent),
+        radial-gradient(ellipse 40% 40% at 80% 20%, rgba(139,92,246,0.1), transparent),
+        radial-gradient(ellipse 40% 40% at 20% 30%, rgba(16,185,129,0.08), transparent);
+      pointer-events: none;
+    }
+    .hero-icon {
+      width: 96px; height: 96px; border-radius: 24px;
+      margin-bottom: 2rem;
+      box-shadow: 0 0 60px rgba(99,102,241,0.3);
+      animation: float 6s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .hero h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 900; line-height: 1.05;
+      margin-bottom: 1.5rem;
+    }
+    .hero h1 .gradient-text {
+      background: var(--gradient-1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.25rem; color: var(--text-secondary);
+      max-width: 560px; margin: 0 auto 3rem;
+    }
+    .hero-badges {
+      display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 0.5rem 1rem; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .badge .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .badge .dot.green { background: var(--green); }
+    .badge .dot.purple { background: var(--accent); }
+    .badge .dot.orange { background: var(--orange); }
+
+    .scroll-hint {
+      position: absolute; bottom: 2rem;
+      animation: bounce 2s infinite;
+      color: var(--text-secondary); font-size: 0.8rem;
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(8px); }
+    }
+
+    /* ── Feature cards ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(99,102,241,0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .feature-card .icon-box {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 1.25rem;
+    }
+    .feature-card h3 {
+      font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+      font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6;
+    }
+
+    /* Icon box color variants */
+    .icon-box.purple { background: rgba(99,102,241,0.15); }
+    .icon-box.green  { background: rgba(16,185,129,0.15); }
+    .icon-box.orange { background: rgba(245,158,11,0.15); }
+    .icon-box.red    { background: rgba(239,68,68,0.15); }
+    .icon-box.blue   { background: rgba(59,130,246,0.15); }
+
+    /* ── Showcase / media sections ── */
+    .showcase {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      padding: 6rem 2rem;
+      max-width: 1200px; margin: 0 auto;
+    }
+    .showcase.reverse { direction: rtl; }
+    .showcase.reverse > * { direction: ltr; }
+
+    .showcase-content .section-label { margin-bottom: 0.75rem; }
+    .showcase-content h2 {
+      font-size: clamp(1.75rem, 3vw, 2.5rem);
+      font-weight: 800; margin-bottom: 1rem;
+    }
+    .showcase-content p {
+      color: var(--text-secondary); font-size: 1.05rem;
+      margin-bottom: 1.5rem;
+    }
+    .showcase-content ul {
+      list-style: none; display: flex; flex-direction: column; gap: 0.75rem;
+    }
+    .showcase-content ul li {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      font-size: 0.95rem; color: var(--text-secondary);
+    }
+    .showcase-content ul li .check {
+      flex-shrink: 0;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(16,185,129,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; color: var(--green);
+      margin-top: 2px;
+    }
+
+    .media-placeholder {
+      background: var(--bg-card);
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      aspect-ratio: 9 / 16;
+      max-height: 580px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0.75rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      position: relative;
+      overflow: hidden;
+      margin: 0 auto;
+      max-width: 290px;
+    }
+    .media-placeholder.wide {
+      aspect-ratio: 16 / 9;
+      max-height: none;
+      max-width: 100%;
+    }
+    .media-placeholder .placeholder-icon {
+      font-size: 2.5rem; opacity: 0.4;
+    }
+    .media-placeholder .placeholder-label {
+      font-weight: 600; color: var(--text);
+    }
+    .media-placeholder .placeholder-hint {
+      font-size: 0.8rem; opacity: 0.6; text-align: center; padding: 0 1rem;
+    }
+    .media-placeholder img,
+    .media-placeholder video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; border-radius: 18px;
+    }
+
+    /* ── Tech stack ── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .tech-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    .tech-card:hover {
+      border-color: rgba(99,102,241,0.3);
+      transform: translateY(-2px);
+    }
+    .tech-card .tech-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+    .tech-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .tech-card p { font-size: 0.8rem; color: var(--text-secondary); }
+
+    /* ── Divider ── */
+    .divider {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 2rem;
+    }
+    .divider hr {
+      border: none; border-top: 1px solid var(--border);
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center; padding: 4rem 2rem 3rem;
+      color: var(--text-secondary); font-size: 0.85rem;
+    }
+    footer .footer-logo {
+      display: flex; align-items: center; gap: 0.5rem;
+      justify-content: center; margin-bottom: 1rem;
+      font-weight: 700; font-size: 1.1rem; color: var(--text);
+    }
+    footer .footer-logo img { width: 28px; height: 28px; border-radius: 8px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav ul { display: none; }
+      .showcase { grid-template-columns: 1fr; gap: 2rem; }
+      .showcase.reverse { direction: ltr; }
+      .features-grid { grid-template-columns: 1fr; }
+      section { padding: 4rem 1.25rem; }
+      .showcase { padding: 4rem 1.25rem; }
+    }
+
+    /* ── Animations on scroll ── */
+    .fade-in {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1; transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="logo">
+        <img src="media/icon.png" alt="Fridgely" />
+        Fridgely
+      </a>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#chat">AI Chat</a></li>
+        <li><a href="#fridge">Smart Fridge</a></li>
+        <li><a href="#expiry">Expiry Tracking</a></li>
+        <li><a href="#tech">Tech Stack</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <img src="media/icon.png" alt="Fridgely" class="hero-icon" />
+    <h1>
+      Meet <span class="gradient-text">Fridgely</span>
+    </h1>
+    <p>Your AI-powered fridge assistant. Track food, reduce waste, and get recipe ideas — all from a simple chat.</p>
+    <div class="hero-badges">
+      <span class="badge"><span class="dot green"></span>AI-Powered</span>
+      <span class="badge"><span class="dot purple"></span>Cross-Platform</span>
+      <span class="badge"><span class="dot orange"></span>Smart Expiry Tracking</span>
+    </div>
+    <div class="scroll-hint">
+      <span>Scroll to explore</span>
+      <span>&#8595;</span>
+    </div>
+  </section>
+
+  <!-- Features Overview -->
+  <div class="divider"><hr /></div>
+  <section id="features">
+    <span class="section-label">Features</span>
+    <h2 class="section-title">Everything you need to<br />manage your fridge</h2>
+    <p class="section-subtitle">Fridgely combines AI intelligence with intuitive inventory management to help you eat smarter and waste less.</p>
+
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <div class="icon-box purple">&#x1F4AC;</div>
+        <h3>AI Chat Assistant</h3>
+        <p>Talk to Fridgely like a friend. Ask for recipes, add items, or get suggestions — all through natural conversation powered by Claude AI.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="icon-box green">&#x1F4F7;</div>
+        <h3>Photo Recognition</h3>
+        <p>Snap a photo of your groceries and Fridgely automatically identifies and adds each item to your inventory with estimated expiry dates.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="icon-box orange">&#x23F0;</div>
+        <h3>Expiry Tracking</h3>
+        <p>Color-coded alerts show you what needs to be used first. Never let food go to waste with smart expiry estimation.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="icon-box red">&#x1F372;</div>
+        <h3>Smart Recipes</h3>
+        <p>Get recipe suggestions that prioritize ingredients about to expire, while respecting your dietary preferences and allergies.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="icon-box blue">&#x1F4CB;</div>
+        <h3>Inventory Management</h3>
+        <p>Add, remove, and track quantities with custom units. Increment and decrement with a tap. Pull-to-refresh for real-time updates.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="icon-box purple">&#x2699;&#xFE0F;</div>
+        <h3>Personalization</h3>
+        <p>Set dietary preferences, track allergies, and switch between dark and light themes. Fridgely adapts to you.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Showcase 1: AI Chat -->
+  <div class="divider"><hr /></div>
+  <div class="showcase" id="chat">
+    <div class="showcase-content fade-in">
+      <span class="section-label">AI Chat</span>
+      <h2>Your fridge,<br />one message away</h2>
+      <p>Fridgely's AI assistant understands natural language. Just tell it what you bought, ask what's about to expire, or request a dinner recipe.</p>
+      <ul>
+        <li><span class="check">&#x2713;</span> Natural language input — no buttons needed</li>
+        <li><span class="check">&#x2713;</span> Photo uploads for automatic item recognition</li>
+        <li><span class="check">&#x2713;</span> Persistent chat history across sessions</li>
+        <li><span class="check">&#x2713;</span> Markdown-formatted recipe responses</li>
+      </ul>
+    </div>
+    <div class="fade-in">
+      <div class="media-placeholder" id="media-chat">
+        <span class="placeholder-icon">&#x1F4F1;</span>
+        <span class="placeholder-label">Chat Screen</span>
+        <span class="placeholder-hint">Add screenshot or video here<br /><code>media/chat.png</code></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Showcase 2: Fridge Inventory -->
+  <div class="showcase reverse" id="fridge">
+    <div class="showcase-content fade-in">
+      <span class="section-label">My Fridge</span>
+      <h2>See everything<br />at a glance</h2>
+      <p>A clean, organized view of everything in your fridge. Tap any item for details, adjust quantities, or edit expiry dates.</p>
+      <ul>
+        <li><span class="check">&#x2713;</span> Quantity controls with custom units (lbs, pieces, liters)</li>
+        <li><span class="check">&#x2713;</span> One-tap item detail sheet</li>
+        <li><span class="check">&#x2713;</span> Floating action button to add items manually</li>
+        <li><span class="check">&#x2713;</span> Sorted by expiry — use-first items on top</li>
+      </ul>
+    </div>
+    <div class="fade-in">
+      <div class="media-placeholder" id="media-fridge">
+        <span class="placeholder-icon">&#x1F9CA;</span>
+        <span class="placeholder-label">Fridge Screen</span>
+        <span class="placeholder-hint">Add screenshot or video here<br /><code>media/fridge.png</code></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Showcase 3: Expiry Tracking -->
+  <div class="showcase" id="expiry">
+    <div class="showcase-content fade-in">
+      <span class="section-label">Expiry Tracking</span>
+      <h2>Never waste<br />food again</h2>
+      <p>Fridgely automatically estimates expiry dates based on food type and shows clear color-coded status indicators.</p>
+      <ul>
+        <li><span class="check">&#x2713;</span> <strong style="color:#EF4444;">Red</strong> — Expired, discard or use immediately</li>
+        <li><span class="check">&#x2713;</span> <strong style="color:#F97316;">Orange</strong> — Use soon, expiring today or tomorrow</li>
+        <li><span class="check">&#x2713;</span> <strong style="color:#EAB308;">Yellow</strong> — Expiring within 2 days</li>
+        <li><span class="check">&#x2713;</span> <strong style="color:#22C55E;">Green</strong> — Fresh and good to go</li>
+      </ul>
+    </div>
+    <div class="fade-in">
+      <div class="media-placeholder" id="media-expiry">
+        <span class="placeholder-icon">&#x23F0;</span>
+        <span class="placeholder-label">Expiry Details</span>
+        <span class="placeholder-hint">Add screenshot or video here<br /><code>media/expiry.png</code></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Demo Video -->
+  <div class="divider"><hr /></div>
+  <section id="demo">
+    <div style="text-align:center;">
+      <span class="section-label">Demo</span>
+      <h2 class="section-title">See it in action</h2>
+      <p class="section-subtitle" style="margin:0 auto 3rem;">Watch how Fridgely turns a simple conversation into a fully managed fridge.</p>
+    </div>
+    <div class="media-placeholder wide fade-in" id="media-demo" style="max-width:800px; margin:0 auto;">
+      <span class="placeholder-icon">&#x25B6;&#xFE0F;</span>
+      <span class="placeholder-label">Demo Video</span>
+      <span class="placeholder-hint">Add a full demo video here<br /><code>media/demo.mp4</code></span>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <div class="divider"><hr /></div>
+  <section id="tech">
+    <div style="text-align:center;">
+      <span class="section-label">Tech Stack</span>
+      <h2 class="section-title">Built with modern tools</h2>
+      <p class="section-subtitle" style="margin:0 auto 3rem;">A thoughtful stack that balances performance, developer experience, and user privacy.</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card fade-in">
+        <div class="tech-icon">&#x269B;&#xFE0F;</div>
+        <h4>React Native</h4>
+        <p>Cross-platform mobile</p>
+      </div>
+      <div class="tech-card fade-in">
+        <div class="tech-icon">&#x1F4F2;</div>
+        <h4>Expo</h4>
+        <p>Build & deploy tooling</p>
+      </div>
+      <div class="tech-card fade-in">
+        <div class="tech-icon">&#x1F9E0;</div>
+        <h4>Claude AI</h4>
+        <p>Anthropic's AI model</p>
+      </div>
+      <div class="tech-card fade-in">
+        <div class="tech-icon">&#x1F4BE;</div>
+        <h4>SQLite</h4>
+        <p>Local-first database</p>
+      </div>
+      <div class="tech-card fade-in">
+        <div class="tech-icon">&#x1F310;</div>
+        <h4>TypeScript</h4>
+        <p>Type-safe codebase</p>
+      </div>
+      <div class="tech-card fade-in">
+        <div class="tech-icon">&#x1F5A5;&#xFE0F;</div>
+        <h4>Express.js</h4>
+        <p>Secure API proxy</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-logo">
+      <img src="media/icon.png" alt="Fridgely" />
+      Fridgely
+    </div>
+    <p>Built with care to reduce food waste, one fridge at a time.</p>
+  </footer>
+
+  <!-- Scroll animation script -->
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>
