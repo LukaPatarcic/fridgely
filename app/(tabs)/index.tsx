@@ -36,13 +36,17 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
   useEffect(() => {
-    SecureStore.getItemAsync(API_KEY_STORE).then((key) => {
-      if (key) {
-        setApiKey(key);
-      } else {
+    SecureStore.getItemAsync(API_KEY_STORE)
+      .then((key) => {
+        if (key) {
+          setApiKey(key);
+        } else {
+          setShowKeyModal(true);
+        }
+      })
+      .catch(() => {
         setShowKeyModal(true);
-      }
-    });
+      });
   }, []);
 
   const handleSaveApiKey = useCallback(async (key: string) => {
@@ -63,7 +67,6 @@ export default function ChatScreen() {
       setLoading(true);
 
       try {
-        console.log("[Fridgely] Sending to proxy, apiKey exists:", !!apiKey);
         const { assistantText, updatedHistory } = await sendMessage(
           apiKey,
           state.conversationHistory,
@@ -81,7 +84,6 @@ export default function ChatScreen() {
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Something went wrong";
-        console.log("[Fridgely] Error:", err);
         setError(message);
       } finally {
         setLoading(false);

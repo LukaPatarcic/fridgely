@@ -72,12 +72,16 @@ export async function executeTool(
   try {
     switch (toolName) {
       case "add_to_fridge": {
-        const item = await addItem(
-          db,
-          input.name as string,
-          input.quantity as number,
-          input.unit as string | undefined
-        );
+        const name = typeof input.name === "string" ? input.name.trim() : "";
+        const quantity = typeof input.quantity === "number" ? input.quantity : 0;
+        if (!name || name.length > 200) {
+          return JSON.stringify({ error: "Invalid item name" });
+        }
+        if (quantity <= 0 || quantity > 10000) {
+          return JSON.stringify({ error: "Quantity must be between 1 and 10000" });
+        }
+        const unit = typeof input.unit === "string" ? input.unit.trim().slice(0, 50) : undefined;
+        const item = await addItem(db, name, quantity, unit);
         return JSON.stringify({
           success: true,
           item: {
@@ -88,14 +92,18 @@ export async function executeTool(
         });
       }
       case "remove_from_fridge": {
-        const removed = await removeItem(db, input.name as string);
+        const removeName = typeof input.name === "string" ? input.name.trim() : "";
+        if (!removeName || removeName.length > 200) {
+          return JSON.stringify({ error: "Invalid item name" });
+        }
+        const removed = await removeItem(db, removeName);
         return JSON.stringify({
           success: true,
           removed_count: removed,
           message:
             removed > 0
-              ? `Removed ${input.name}`
-              : `No item named "${input.name}" found`,
+              ? `Removed ${removeName}`
+              : `No item named "${removeName}" found`,
         });
       }
       case "list_fridge_contents": {
