@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import { addItem, removeItem, listItems, clearAll } from "../db/repository";
+import { addItem, removeItem, listItems, clearAll, decrementItemQuantity } from "../db/repository";
 
 export interface ToolDefinition {
   name: string;
@@ -62,6 +62,26 @@ export const toolDefinitions: ToolDefinition[] = [
       properties: {},
     },
   },
+  {
+    name: "use_from_fridge",
+    description:
+      "Use/consume an item from the fridge by decrementing its quantity. If quantity reaches 0, the item is removed. Use this when the user wants to cook or make something, to subtract the ingredients they will use.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Name of the item to use",
+        },
+        quantity: {
+          type: "number",
+          description:
+            "Quantity to use. If omitted, uses all of the item.",
+        },
+      },
+      required: ["name"],
+    },
+  },
 ];
 
 export async function executeTool(
@@ -84,6 +104,7 @@ export async function executeTool(
         const item = await addItem(db, name, quantity, unit);
         return JSON.stringify({
           success: true,
+          action: item.updated ? "quantity_updated" : "added_new",
           item: {
             name: item.name,
             quantity: item.quantity,
@@ -120,6 +141,34 @@ export async function executeTool(
       case "clear_fridge": {
         await clearAll(db);
         return JSON.stringify({ success: true, message: "Fridge cleared" });
+      }
+      case "use_from_fridge": {
+        const useName = typeof input.name === "string" ? input.name.trim() : "";
+        if (!useName || useName.length > 200) {
+          return JSON.stringify({ error: "Invalid item name" });
+        }
+        const useQuantity = typeof input.quantity === "number" ? input.quantity : undefined;
+        if (useQuantity !== undefined && (useQuantity <= 0 || useQuantity > 10000)) {
+          return JSON.stringify({ error: "Quantity must be between 1 and 10000" });
+        }
+        const result = await decrementItemQuantity(db, useName, useQuantity);
+        if (result.remaining === 0 && result.removed) {
+          return JSON.stringify({
+            success: true,
+            message: `Used all ${useName} (removed from fridge)`,
+          });
+        }
+        if (result.remaining === 0 && !result.removed) {
+          return JSON.stringify({
+            success: false,
+            message: `No item named "${useName}" found in the fridge`,
+          });
+        }
+        return JSON.stringify({
+          success: true,
+          message: `Used some ${result.name}, ${result.remaining} remaining`,
+          remaining: result.remaining,
+        });
       }
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
