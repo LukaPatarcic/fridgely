@@ -18,6 +18,7 @@ import { useDatabase } from "../../src/context/DatabaseProvider";
 import { useTheme } from "../../src/context/ThemeProvider";
 import { usePreferences } from "../../src/context/PreferencesProvider";
 import { sendMessage } from "../../src/api/claude";
+import type { Message } from "../../src/api/claude";
 import { useChatReducer } from "../../src/chat/useChatReducer";
 import { MessageBubble } from "../../src/components/MessageBubble";
 import { ChatInput } from "../../src/components/ChatInput";
@@ -138,11 +139,8 @@ export default function ChatScreen() {
 
   function rebuildHistoryFromRows(
     rows: ChatMessageRow[]
-  ): { role: "user" | "assistant"; content: string | object[] }[] {
-    const history: {
-      role: "user" | "assistant";
-      content: string | object[];
-    }[] = [];
+  ): Message[] {
+    const history: Message[] = [];
 
     for (const row of rows) {
       const parsed = JSON.parse(row.content);
@@ -299,6 +297,87 @@ export default function ChatScreen() {
     ]
   );
 
+  const handleSendImage = useCallback(
+    async (base64: string, mimeType: string) => {
+      if (!apiKey) {
+        setShowKeyModal(true);
+        return;
+      }
+
+      let chatId = state.currentChatId;
+      if (!chatId) {
+        const chat = await createChat(db, "Photo upload");
+        chatId = chat.id;
+        setChatId(chatId);
+      }
+
+      const displayText = "📷 Sent a photo";
+      addUserMessage(displayText);
+      setLoading(true);
+
+      await addChatMessage(
+        db,
+        chatId,
+        "user",
+        JSON.stringify({ text: displayText })
+      );
+
+      try {
+        const promptText =
+          "I just took a photo of food items. Please identify each food item visible and add them all to my fridge using add_to_fridge.";
+        const { assistantText, updatedHistory } = await sendMessage(
+          apiKey,
+          state.conversationHistory,
+          promptText,
+          db,
+          async (toolName, input) => {
+            addToolMessage(toolName, JSON.stringify(input));
+            await addChatMessage(
+              db,
+              chatId!,
+              "tool",
+              JSON.stringify({ text: JSON.stringify(input), toolName })
+            );
+          },
+          { foodPreferences, allergies },
+          { base64, mimeType }
+        );
+
+        setHistory(updatedHistory);
+        if (assistantText) {
+          addAssistantMessage(assistantText);
+          await addChatMessage(
+            db,
+            chatId,
+            "assistant",
+            JSON.stringify({ text: assistantText })
+          );
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Something went wrong";
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      apiKey,
+      db,
+      state.conversationHistory,
+      state.currentChatId,
+      addUserMessage,
+      addAssistantMessage,
+      addToolMessage,
+      setHistory,
+      setLoading,
+      setError,
+      setChatId,
+      foodPreferences,
+      allergies,
+    ]
+  );
+
   function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
     const now = new Date();
@@ -418,7 +497,7 @@ export default function ChatScreen() {
         </View>
       )}
 
-      <ChatInput onSend={handleSend} disabled={state.isLoading} />
+      <ChatInput onSend={handleSend} onSendImage={handleSendImage} disabled={state.isLoading} />
     </View>
   );
 }

@@ -34,7 +34,13 @@
       "expo-router",
       "expo-sqlite",
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Fridgely needs camera access to photograph your food items and add them to your fridge."
+        }
+      ]
     ]
   }
 }
