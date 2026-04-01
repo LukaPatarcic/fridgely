@@ -126,6 +126,17 @@ export async function updateItemQuantity(
   return result.changes;
 }
 
+export async function updateItemExpiryDate(
+  db: SQLiteDatabase,
+  id: number,
+  expiresAt: string | null
+): Promise<void> {
+  await db.runAsync(
+    "UPDATE fridge_items SET expires_at = ? WHERE id = ?",
+    [expiresAt, id]
+  );
+}
+
 // --- Chat repository functions ---
 
 export async function createChat(

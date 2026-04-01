@@ -22,9 +22,11 @@ import {
   addItem,
   updateItemQuantity,
   decrementItemQuantity,
+  updateItemExpiryDate,
   type FridgeItem,
 } from "../../src/db/repository";
 import { FridgeItemRow } from "../../src/components/FridgeItemRow";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { estimateExpiryDate, daysUntilExpiry, getExpiryLabel, getExpiryStatus } from "../../src/utils/expiryEstimator";
 
 function formatDate(dateStr: string): string {
@@ -46,6 +48,7 @@ export default function FridgeScreen() {
   const [newItemQuantity, setNewItemQuantity] = useState("1");
   const [newItemUnit, setNewItemUnit] = useState("");
   const [selectedItem, setSelectedItem] = useState<FridgeItem | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadItems = useCallback(async () => {
     const data = await listItems(db);
@@ -96,6 +99,28 @@ export default function FridgeScreen() {
     },
     [db, loadItems]
   );
+
+  const handleExpiryDateChange = useCallback(
+    async (event: any, date?: Date) => {
+      if (Platform.OS === "android") {
+        setShowDatePicker(false);
+      }
+      if (event.type === "dismissed" || !date || !selectedItem) return;
+      const iso = date.toISOString().replace("T", " ").slice(0, 19);
+      await updateItemExpiryDate(db, selectedItem.id, iso);
+      setSelectedItem({ ...selectedItem, expires_at: iso });
+      await loadItems();
+    },
+    [db, selectedItem, loadItems]
+  );
+
+  const handleClearExpiry = useCallback(async () => {
+    if (selectedItem) {
+      await updateItemExpiryDate(db, selectedItem.id, null);
+      setSelectedItem({ ...selectedItem, expires_at: null });
+      await loadItems();
+    }
+  }, [db, selectedItem, loadItems]);
 
   const handleAddItem = useCallback(async () => {
     const name = newItemName.trim();
@@ -173,11 +198,11 @@ export default function FridgeScreen() {
         visible={selectedItem !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setSelectedItem(null)}
+        onRequestClose={() => { setSelectedItem(null); setShowDatePicker(false); }}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setSelectedItem(null)}
+          onPress={() => { setSelectedItem(null); setShowDatePicker(false); }}
         >
           <View style={styles.modalBackdrop} />
           <Pressable
@@ -224,12 +249,19 @@ export default function FridgeScreen() {
                       </Text>
                     </View>
 
-                    <View style={[styles.detailCard, { backgroundColor: colors.inputBackground }]}>
-                      <Ionicons
-                        name="time-outline"
-                        size={20}
-                        color={status ? statusColors[status] : colors.textSecondary}
-                      />
+                    <TouchableOpacity
+                      style={[styles.detailCard, { backgroundColor: colors.inputBackground }]}
+                      onPress={() => setShowDatePicker(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.detailCardHeader}>
+                        <Ionicons
+                          name="time-outline"
+                          size={20}
+                          color={status ? statusColors[status] : colors.textSecondary}
+                        />
+                        <Ionicons name="pencil-outline" size={14} color={colors.textSecondary} />
+                      </View>
                       <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Expires</Text>
                       <Text
                         style={[
@@ -239,9 +271,9 @@ export default function FridgeScreen() {
                       >
                         {selectedItem.expires_at
                           ? formatDate(selectedItem.expires_at)
-                          : "Unknown"}
+                          : "Not set"}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
 
                     <View style={[styles.detailCard, { backgroundColor: colors.inputBackground }]}>
                       <Ionicons
@@ -262,6 +294,40 @@ export default function FridgeScreen() {
                       </Text>
                     </View>
                   </View>
+
+                  {showDatePicker && (
+                    <View style={styles.datePickerContainer}>
+                      <DateTimePicker
+                        value={
+                          selectedItem.expires_at
+                            ? new Date(selectedItem.expires_at.replace(" ", "T"))
+                            : new Date()
+                        }
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={handleExpiryDateChange}
+                        themeVariant={theme === "dark" ? "dark" : "light"}
+                      />
+                      {Platform.OS === "ios" && (
+                        <TouchableOpacity
+                          style={styles.doneDateButton}
+                          onPress={() => setShowDatePicker(false)}
+                        >
+                          <Text style={styles.doneDateText}>Done</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+
+                  {selectedItem.expires_at && (
+                    <TouchableOpacity
+                      style={styles.clearExpiryButton}
+                      onPress={handleClearExpiry}
+                    >
+                      <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+                      <Text style={styles.clearExpiryText}>Clear Expiry Date</Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={styles.detailDeleteButton}
@@ -526,6 +592,42 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 15,
+    fontWeight: "600",
+  },
+  detailCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  datePickerContainer: {
+    marginBottom: 16,
+  },
+  clearExpiryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    marginBottom: 10,
+  },
+  clearExpiryText: {
+    color: "#EF4444",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  doneDateButton: {
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    marginTop: 4,
+  },
+  doneDateText: {
+    color: "#10B981",
+    fontSize: 14,
     fontWeight: "600",
   },
   detailDeleteButton: {
