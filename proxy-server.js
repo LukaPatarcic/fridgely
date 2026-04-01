@@ -5,7 +5,7 @@ const os = require("os");
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const PORT = 3001;
-const REQUEST_TIMEOUT_MS = 30000;
+const REQUEST_TIMEOUT_MS = 60000;
 
 // Resolve local network IP
 function getLocalIp() {
@@ -39,7 +39,7 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "5mb" }));
 
 // Rate limiting: 60 requests per minute per IP
 app.use(

@@ -25,6 +25,8 @@ Keep responses concise and friendly.`;
     prompt += `\n\nCRITICAL - The user has the following allergies: ${preferences.allergies}. NEVER suggest recipes or ingredients that contain these allergens. Always check ingredients against this list before recommending anything.`;
   }
 
+  prompt += `\n\nWhen the user sends a photo, identify all visible food items. For each item, estimate a reasonable quantity and unit, then use add_to_fridge to save each one. After adding, summarize what was added.`;
+
   return prompt;
 }
 
@@ -36,6 +38,11 @@ export interface ContentBlock {
   input?: Record<string, unknown>;
   tool_use_id?: string;
   content?: string;
+  source?: {
+    type: string;
+    media_type: string;
+    data: string;
+  };
 }
 
 export interface Message {
@@ -104,11 +111,26 @@ export async function sendMessage(
   userText: string,
   db: SQLiteDatabase,
   onToolUse?: (toolName: string, input: Record<string, unknown>) => void,
-  preferences?: { foodPreferences?: string; allergies?: string }
+  preferences?: { foodPreferences?: string; allergies?: string },
+  image?: { base64: string; mimeType: string } | null
 ): Promise<{ assistantText: string; updatedHistory: Message[] }> {
+  const userContent: string | ContentBlock[] = image
+    ? [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: image.mimeType,
+            data: image.base64,
+          },
+        },
+        { type: "text", text: userText },
+      ]
+    : userText;
+
   const messages: Message[] = [
     ...conversationHistory,
-    { role: "user", content: userText },
+    { role: "user", content: userContent },
   ];
 
   let rounds = 0;
