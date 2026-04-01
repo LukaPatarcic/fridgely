@@ -100,7 +100,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             theme === "dark" && { color: "#6EE7B7" },
           ]}
         >
-          {message.toolName}
+          {formatToolName(message.toolName)}
         </Text>
         <Text
           style={[
@@ -137,15 +137,28 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
+const toolNameLabels: Record<string, string> = {
+  add_to_fridge: "Add to Fridge",
+  remove_from_fridge: "Remove from Fridge",
+  list_fridge_contents: "List Fridge",
+  clear_fridge: "Clear Fridge",
+  use_from_fridge: "Use from Fridge",
+};
+
+function formatToolName(name?: string): string {
+  if (!name) return "Tool";
+  return toolNameLabels[name] ?? name.replace(/_/g, " ");
+}
+
 function formatToolResult(raw: string): string {
   try {
     const parsed = JSON.parse(raw);
+    if (parsed.error) {
+      return parsed.error;
+    }
     if (parsed.item) {
       const { name, quantity, unit } = parsed.item;
-      return `Added ${quantity}${unit ? ` ${unit}` : ""} ${name}`;
-    }
-    if (parsed.removed_count !== undefined) {
-      return parsed.message;
+      return `${parsed.action === "quantity_updated" ? "Updated" : "Added"} ${quantity}${unit ? ` ${unit}` : ""} ${name}`;
     }
     if (parsed.items) {
       if (parsed.total === 0) return "Fridge is empty";
@@ -155,6 +168,9 @@ function formatToolResult(raw: string): string {
             `${i.quantity}${i.unit ? ` ${i.unit}` : ""} ${i.name}`
         )
         .join(", ");
+    }
+    if (parsed.message) {
+      return parsed.message;
     }
     return raw;
   } catch {

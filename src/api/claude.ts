@@ -111,7 +111,7 @@ export async function sendMessage(
   conversationHistory: Message[],
   userText: string,
   db: SQLiteDatabase,
-  onToolUse?: (toolName: string, input: Record<string, unknown>) => void,
+  onToolUse?: (toolName: string, result: string) => void,
   preferences?: { foodPreferences?: string; allergies?: string },
   image?: { base64: string; mimeType: string } | null
 ): Promise<{ assistantText: string; updatedHistory: Message[] }> {
@@ -156,8 +156,8 @@ export async function sendMessage(
       const toolResults: ContentBlock[] = [];
 
       for (const block of toolUseBlocks) {
-        onToolUse?.(block.name!, block.input!);
         const result = await executeTool(db, block.name!, block.input!);
+        onToolUse?.(block.name!, result);
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id!,
