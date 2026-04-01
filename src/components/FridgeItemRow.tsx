@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeProvider";
 import type { FridgeItem } from "../db/repository";
 
 interface FridgeItemRowProps {
@@ -11,11 +12,13 @@ interface FridgeItemRowProps {
 }
 
 export function FridgeItemRow({ item, onDelete, onIncrement, onDecrement }: FridgeItemRowProps) {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
       <View style={styles.info}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.detail}>
+        <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
+        <Text style={[styles.detail, { color: colors.textSecondary }]}>
           {item.unit ? `${item.unit}` : ""}
         </Text>
       </View>
@@ -24,14 +27,14 @@ export function FridgeItemRow({ item, onDelete, onIncrement, onDecrement }: Frid
           onPress={() => onDecrement(item.name, item.quantity)}
           style={styles.quantityButton}
         >
-          <Ionicons name="remove-circle-outline" size={24} color="#6B7280" />
+          <Ionicons name="remove-circle-outline" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.quantityText}>{item.quantity}</Text>
+        <Text style={[styles.quantityText, { color: colors.text }]}>{item.quantity}</Text>
         <TouchableOpacity
           onPress={() => onIncrement(item.name)}
           style={styles.quantityButton}
         >
-          <Ionicons name="add-circle-outline" size={24} color="#6B7280" />
+          <Ionicons name="add-circle-outline" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
       <TouchableOpacity
@@ -50,9 +53,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   info: {
     flex: 1,
@@ -60,12 +61,10 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
     textTransform: "capitalize",
   },
   detail: {
     fontSize: 14,
-    color: "#6B7280",
     marginTop: 2,
   },
   quantityControls: {
@@ -79,7 +78,6 @@ const styles = StyleSheet.create({
   quantityText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
     minWidth: 28,
     textAlign: "center",
   },

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Text,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   TouchableOpacity,
@@ -14,7 +13,10 @@ import {
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { Ionicons } from "@expo/vector-icons";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useDatabase } from "../../src/context/DatabaseProvider";
+import { useTheme } from "../../src/context/ThemeProvider";
+import { usePreferences } from "../../src/context/PreferencesProvider";
 import { sendMessage } from "../../src/api/claude";
 import { useChatReducer } from "../../src/chat/useChatReducer";
 import { MessageBubble } from "../../src/components/MessageBubble";
@@ -35,6 +37,10 @@ const API_KEY_STORE = "fridgely_api_key";
 
 export default function ChatScreen() {
   const db = useDatabase();
+  const { colors } = useTheme();
+  const { foodPreferences, allergies } = usePreferences();
+  const tabBarHeight = useBottomTabBarHeight();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const {
     state,
     addUserMessage,
@@ -57,13 +63,22 @@ export default function ChatScreen() {
   useEffect(() => {
     const showEvent =
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const sub = Keyboard.addListener(showEvent, () => {
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     });
-    return () => sub.remove();
-  }, []);
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [tabBarHeight]);
 
   useEffect(() => {
     SecureStore.getItemAsync(API_KEY_STORE)
@@ -244,7 +259,8 @@ export default function ChatScreen() {
               "tool",
               JSON.stringify({ text: JSON.stringify(input), toolName })
             );
-          }
+          },
+          { foodPreferences, allergies }
         );
 
         setHistory(updatedHistory);
@@ -278,6 +294,8 @@ export default function ChatScreen() {
       setLoading,
       setError,
       setChatId,
+      foodPreferences,
+      allergies,
     ]
   );
 
@@ -293,28 +311,26 @@ export default function ChatScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={90}
+    <View
+      style={[styles.container, { backgroundColor: colors.background, paddingBottom: keyboardHeight }]}
     >
       <ApiKeyModal visible={showKeyModal} onSave={handleSaveApiKey} />
 
       {/* Header buttons */}
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={handleOpenHistory}
         >
-          <Ionicons name="time-outline" size={20} color="#4F46E5" />
-          <Text style={styles.headerButtonText}>History</Text>
+          <Ionicons name="time-outline" size={20} color={colors.accent} />
+          <Text style={[styles.headerButtonText, { color: colors.accent }]}>History</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerButton}
           onPress={handleNewChat}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#4F46E5" />
-          <Text style={styles.headerButtonText}>New Chat</Text>
+          <Ionicons name="add-circle-outline" size={20} color={colors.accent} />
+          <Text style={[styles.headerButtonText, { color: colors.accent }]}>New Chat</Text>
         </TouchableOpacity>
       </View>
 
@@ -325,31 +341,31 @@ export default function ChatScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowHistoryModal(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Chat History</Text>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Chat History</Text>
             <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
-              <Ionicons name="close" size={24} color="#1F2937" />
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
           {chatList.length === 0 ? (
             <View style={styles.emptyHistory}>
-              <Text style={styles.emptyHistoryText}>No past chats yet.</Text>
+              <Text style={[styles.emptyHistoryText, { color: colors.textSecondary }]}>No past chats yet.</Text>
             </View>
           ) : (
             <FlatList
               data={chatList}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
-                <View style={styles.chatRow}>
+                <View style={[styles.chatRow, { borderBottomColor: colors.border }]}>
                   <TouchableOpacity
                     style={styles.chatRowContent}
                     onPress={() => handleSelectChat(item.id)}
                   >
-                    <Text style={styles.chatTitle} numberOfLines={1}>
+                    <Text style={[styles.chatTitle, { color: colors.text }]} numberOfLines={1}>
                       {item.title}
                     </Text>
-                    <Text style={styles.chatDate}>
+                    <Text style={[styles.chatDate, { color: colors.textSecondary }]}>
                       {formatDate(item.updated_at)}
                     </Text>
                   </TouchableOpacity>
@@ -370,8 +386,8 @@ export default function ChatScreen() {
       {state.displayMessages.length === 0 && !state.isLoading ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>🧊</Text>
-          <Text style={styles.emptyTitle}>Hey, I'm Fridgely!</Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>Hey, I'm Fridgely!</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
             Tell me what you bought and I'll keep track of your fridge. Ask me
             for recipe suggestions anytime!
           </Text>
@@ -391,8 +407,8 @@ export default function ChatScreen() {
 
       {state.isLoading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#4F46E5" />
-          <Text style={styles.loadingText}>Thinking...</Text>
+          <ActivityIndicator size="small" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Thinking...</Text>
         </View>
       )}
 
@@ -403,14 +419,13 @@ export default function ChatScreen() {
       )}
 
       <ChatInput onSend={handleSend} disabled={state.isLoading} />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   headerBar: {
     flexDirection: "row",
@@ -418,7 +433,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   headerButton: {
     flexDirection: "row",
@@ -430,7 +444,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontWeight: "600",
-    color: "#4F46E5",
   },
   messageList: {
     paddingVertical: 12,
@@ -448,12 +461,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: "700",
-    color: "#1F2937",
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 15,
-    color: "#6B7280",
     textAlign: "center",
     lineHeight: 22,
   },
@@ -466,7 +477,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginLeft: 8,
     fontSize: 14,
-    color: "#6B7280",
   },
   errorContainer: {
     marginHorizontal: 12,
@@ -482,7 +492,6 @@ const styles = StyleSheet.create({
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   modalHeader: {
     flexDirection: "row",
@@ -492,12 +501,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1F2937",
   },
   emptyHistory: {
     flex: 1,
@@ -506,7 +513,6 @@ const styles = StyleSheet.create({
   },
   emptyHistoryText: {
     fontSize: 15,
-    color: "#9CA3AF",
   },
   chatListContent: {
     paddingVertical: 8,
@@ -517,7 +523,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F9FAFB",
   },
   chatRowContent: {
     flex: 1,
@@ -526,12 +531,10 @@ const styles = StyleSheet.create({
   chatTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
     marginBottom: 2,
   },
   chatDate: {
     fontSize: 13,
-    color: "#9CA3AF",
   },
   deleteButton: {
     padding: 8,
